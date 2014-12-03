@@ -55,3 +55,14 @@ tpsopt/CMakeCache.txt
 tpsopt/CMakeFiles
 tpsopt/Makefile
 tpsopt/cmake_install.cmake
+
+# Image data files
+*.jpg
+*.yml
+*.png
+*.bmp
+
+# Data stores
+*.zip
+*.targ.gz
+*.DS_Store
