@@ -1,5 +1,4 @@
 % scratch code for 2D TPS RPM
-
 data_dir = 'data/VOCB3DO';
 depth_dir = 'RegisteredDepthData';
 rgb_dir = 'KinectColor';
@@ -19,9 +18,12 @@ subplot(1,2,2);
 imshow(histeq(D));
 title('Depth');
 
+%% test corrs
+[l, r] = get_corrs(I,J);
+
 %% create image pyramids
 num_levels = 3;
-start_level = 4;
+start_level = 3;
 I_pyr = cell(1, num_levels);
 D_pyr = cell(1, num_levels);
 
@@ -116,67 +118,67 @@ end_I = start_I + num_filts - 1;
 for i = 1:num_levels
     fprintf('Accumulating features for level %d\n', i);
     for j = 1:num_channels
-    fprintf('Accumulating features for channel %d\n', j);
-    
-    filt_resp = I_filt_responses{j, i};
-    %[height, width, num_filts] = size(filt_resp);
-    
-    % center
-    filt_resp_big = imresize(filt_resp, 2^(i-1), 'nearest');
-    Phi(:, start_I:end_I) = ...
-        reshape(filt_resp_big, height*width, num_filts);
-    start_I = start_I + num_filts;
-    end_I = start_I + num_filts - 1;
-    
-    % down
-    H = vision.GeometricTranslator;
-    H.OutputSize = 'Same as input image';
-    H.Offset = [-1, 0];
-    filt_resp_tr = step(H, filt_resp);
-    filt_resp_big = imresize(filt_resp_tr, 2^(i-1), 'nearest');
-    Phi(:, start_I:end_I) = ...
-        reshape(filt_resp_big, height*width, num_filts);
-    start_I = start_I + num_filts;
-    end_I = start_I + num_filts - 1;
-    
-    % up
-    H = vision.GeometricTranslator;
-    H.OutputSize = 'Same as input image';
-    H.Offset = [1, 0];
-    filt_resp_tr = step(H, filt_resp);
-    filt_resp_big = imresize(filt_resp_tr, 2^(i-1), 'nearest');
-    Phi(:, start_I:end_I) = ...
-        reshape(filt_resp_big, height*width, num_filts);
-    start_I = start_I + num_filts;
-    end_I = start_I + num_filts - 1;
-    
-    % right
-    H = vision.GeometricTranslator;
-    H.OutputSize = 'Same as input image';
-    H.Offset = [0, -1];
-    filt_resp_tr = step(H, filt_resp);
-    filt_resp_big = imresize(filt_resp_tr, 2^(i-1), 'nearest');
-    Phi(:, start_I:end_I) = ...
-        reshape(filt_resp_big, height*width, num_filts);
-    start_I = start_I + num_filts;
-    end_I = start_I + num_filts - 1;
-    
-    % left
-    H = vision.GeometricTranslator;
-    H.OutputSize = 'Same as input image';
-    H.Offset = [0, 1];
-    filt_resp_tr = step(H, filt_resp);
-    filt_resp_big = imresize(filt_resp_tr, 2^(i-1), 'nearest');
-    Phi(:, start_I:end_I) = ...
-        reshape(filt_resp_big, height*width, num_filts);
-    start_I = start_I + num_filts;
-    end_I = start_I + num_filts - 1;
+        fprintf('Accumulating features for channel %d\n', j);
+
+        filt_resp = I_filt_responses{j, i};
+
+        % center
+        filt_resp_big = imresize(filt_resp, 2^(i-1), 'nearest');
+        Phi(:, start_I:end_I) = ...
+            reshape(filt_resp_big, height*width, num_filts);
+        start_I = start_I + num_filts;
+        end_I = start_I + num_filts - 1;
+
+        % down
+        H = vision.GeometricTranslator;
+        H.OutputSize = 'Same as input image';
+        H.Offset = [-1, 0];
+        filt_resp_tr = step(H, filt_resp);
+        filt_resp_big = imresize(filt_resp_tr, 2^(i-1), 'nearest');
+        Phi(:, start_I:end_I) = ...
+            reshape(filt_resp_big, height*width, num_filts);
+        start_I = start_I + num_filts;
+        end_I = start_I + num_filts - 1;
+
+        % up
+        H = vision.GeometricTranslator;
+        H.OutputSize = 'Same as input image';
+        H.Offset = [1, 0];
+        filt_resp_tr = step(H, filt_resp);
+        filt_resp_big = imresize(filt_resp_tr, 2^(i-1), 'nearest');
+        Phi(:, start_I:end_I) = ...
+            reshape(filt_resp_big, height*width, num_filts);
+        start_I = start_I + num_filts;
+        end_I = start_I + num_filts - 1;
+
+        % right
+        H = vision.GeometricTranslator;
+        H.OutputSize = 'Same as input image';
+        H.Offset = [0, -1];
+        filt_resp_tr = step(H, filt_resp);
+        filt_resp_big = imresize(filt_resp_tr, 2^(i-1), 'nearest');
+        Phi(:, start_I:end_I) = ...
+            reshape(filt_resp_big, height*width, num_filts);
+        start_I = start_I + num_filts;
+        end_I = start_I + num_filts - 1;
+
+        % left
+        H = vision.GeometricTranslator;
+        H.OutputSize = 'Same as input image';
+        H.Offset = [0, 1];
+        filt_resp_tr = step(H, filt_resp);
+        filt_resp_big = imresize(filt_resp_tr, 2^(i-1), 'nearest');
+        Phi(:, start_I:end_I) = ...
+            reshape(filt_resp_big, height*width, num_filts);
+        start_I = start_I + num_filts;
+        end_I = start_I + num_filts - 1;
     end
 end
+Phi = [Phi, ones(size(Phi,1),1)];
 
 %% check depth difference histograms
-use_inv_depth = true;
-
+use_inv_depth = 0;
+use_log_depth = 1;
 diff_right_filter = ...
     [0, 0, 0;
     -1, 1, 0;
@@ -201,8 +203,10 @@ max_depth = max(max(D_diff));
 if use_inv_depth
    D_diff = max_depth ./ D_diff; 
 end
-
-grad_scale = 1;
+if use_log_depth
+   D_diff = log(D_diff+1); 
+end
+grad_scale = 0;
 diff_D_weights_x = 1.0 ./ (1.0 + exp(grad_scale * abs(I_gradients{1, reg_level})));
 diff_D_weights_y = 1.0 ./ (1.0 + exp(grad_scale * abs(I_gradients{2, reg_level})));
 weights(:,1) = diff_D_weights_x(:);
@@ -210,6 +214,17 @@ weights(:,2) = diff_D_weights_x(:);
 weights(:,3) = diff_D_weights_y(:);
 weights(:,4) = diff_D_weights_y(:);
 weights(weights < 1e-4) = 0;
+
+% zero out neighbor weights for border pix
+im_size = [height width];
+lin_ind_left = sub2ind(im_size, 1:height, ones(1,height));
+weights(lin_ind_left, 1) = 0;
+lin_ind_right = sub2ind(im_size, 1:height, width*ones(1,height));
+weights(lin_ind_right, 2) = 0;
+lin_ind_top = sub2ind(im_size, ones(1,width), 1:width);
+weights(lin_ind_top, 3) = 0;
+lin_ind_bot = sub2ind(im_size, height*ones(1,width), 1:width);
+weights(lin_ind_bot, 4) = 0;
 
 diff_D_left = conv2(D_diff, diff_left_filter, 'same');
 diff_D_right = conv2(D_diff, diff_right_filter, 'same');
@@ -236,11 +251,14 @@ sigma_smooth = sigma_smooth / (4 * num_pix);
 % hist(diff_D_left_weighted(:), 1000);
 
 %% regress to depth
-gamma = 1e-2;
+gamma = 1e4;
 d_vec_train = double(D_pyr{reg_level}(:));
 d_vec = d_vec_train;
 if use_inv_depth
     d_vec = max_depth ./ d_vec_train;
+end
+if use_log_depth
+    d_vec = log(d_vec_train+1);
 end
 w = (Phi' * Phi + gamma * eye(num_features)) \ (Phi' * d_vec);
 
@@ -251,45 +269,19 @@ if use_inv_depth
     d_vec_inv_train = max_depth ./ d_vec_train;   
     d_sq_error = (d_vec_inv_train - d_vec_pred).^2;
 end
+if use_log_depth
+    d_vec_log_train = log(d_vec_train+1);   
+    d_sq_error = (d_vec_log_train - d_vec_pred).^2;
+end
 sigma_tex = mean(d_sq_error);
 
 % TODO: replace with QP solver
-%%
-%d_vec_pred = g;
-if use_inv_depth
-    d_vec_pred = max_depth ./ d_vec_pred;
-end
-
-d_sq_error = (d_vec_train - d_vec_pred).^2;
-d_nom_error = d_vec_train - d_vec_pred;
-
-n_bins = 100;
-figure(10);
-hist(d_nom_error, n_bins);
-title('Depth Error');
-
-fprintf('Nominal Error\n');
-fprintf('Mean:\t%.03f\n', mean(d_nom_error));
-fprintf('Med:\t%.03f\n', median(d_nom_error));
-fprintf('Std:\t%.03f\n', std(d_nom_error));
-
-fprintf('\nSquared Error\n');
-fprintf('Mean:\t%.03f\n', mean(d_sq_error));
-fprintf('Med:\t%.03f\n', median(d_sq_error));
-fprintf('Min:\t%.03f\n', min(d_sq_error));
-fprintf('Max:\t%.03f\n', max(d_sq_error));
-
-D_pred = reshape(d_vec_pred, height, width);
-figure(11);
-subplot(1,2,1);
-imshow(D_pyr{reg_level});
-subplot(1,2,2);
-imshow(uint16(D_pred));
 
 %% form linear system
 %sigma_tex = 1.0;
 %sigma_smooth = 1.0;
 lambda = sigma_tex / sigma_smooth;
+lambda = 1.0;
 
 % temp weights matrix organized as (L R U D)
 %weights = ones(num_pix, 4);
@@ -301,11 +293,22 @@ b = Phi * w;
 im_size = [height width];
 mat_size = size(A);
 lin_ind = 1:num_pix;
+
+% create indices to left and right of current pixel
 [px_y, px_x] = ind2sub(im_size, lin_ind);
 ind_left = [max([px_x - 1; ones(1, num_pix)]); px_y]; %max(px_x - 1, ones(1, num_pix));
 ind_right = [min([px_x + 1; width*ones(1, num_pix)]); px_y];
 ind_up = [px_x; max([px_y - 1; ones(1, num_pix)])];
 ind_down = [px_x; min([px_y + 1; height*ones(1, num_pix)])];
+
+% ind_left = [px_x - 1; px_y]; %max(px_x - 1, ones(1, num_pix));
+% ind_right = [px_x + 1; px_y];
+% ind_up = [px_x; px_y - 1];
+% ind_down = [px_x; px_y + 1];
+valid_ind_left = find(px_x - 1 > 0);
+valid_ind_right = find(px_x + 1 <= width);
+valid_ind_up = find(px_y - 1 > 0);
+valid_ind_down = find(px_y + 1 <= height);
 
 % compute linear indices
 lin_ind_left = sub2ind(im_size, ind_left(2,:), ind_left(1,:));
@@ -342,23 +345,62 @@ A(lin_ind_fill) = A(lin_ind_fill)' - lambda * weights(:,4);
 % update diagonal
 A(lin_ind_diag) = ones(num_pix,1) + lambda * sum(weights, 2);
 
-lin_ind_fill = sub2ind(mat_size, lin_ind_left, lin_ind_left);
-A(lin_ind_fill) = A(lin_ind_fill)' + lambda * weights(:,1);
+lin_ind_fill = ...
+    sub2ind(mat_size, lin_ind_left(valid_ind_left), lin_ind_left(valid_ind_left));
+A(lin_ind_fill) = A(lin_ind_fill)' + lambda * weights(lin_ind(valid_ind_left),1); % edge right of left neighbor
 
-lin_ind_fill = sub2ind(mat_size, lin_ind_right, lin_ind_right);
-A(lin_ind_fill) = A(lin_ind_fill)' + lambda * weights(:,2);
+lin_ind_fill = ...
+    sub2ind(mat_size, lin_ind_right(valid_ind_right), lin_ind_right(valid_ind_right));
+A(lin_ind_fill) = A(lin_ind_fill)' + lambda * weights(lin_ind(valid_ind_right),2); % edge left of right neighbor
 
-lin_ind_fill = sub2ind(mat_size, lin_ind_up, lin_ind_up);
-A(lin_ind_fill) = A(lin_ind_fill)' + lambda * weights(:,3);
+lin_ind_fill = ...
+    sub2ind(mat_size, lin_ind_up(valid_ind_up), lin_ind_up(valid_ind_up));
+A(lin_ind_fill) = A(lin_ind_fill)' + lambda * weights(lin_ind(valid_ind_up),3); % edge below upper neighbor
 
-lin_ind_fill = sub2ind(mat_size, lin_ind_down, lin_ind_down);
-A(lin_ind_fill) = A(lin_ind_fill)' + lambda * weights(:,4);
+lin_ind_fill = ...
+    sub2ind(mat_size, lin_ind_down(valid_ind_down), lin_ind_down(valid_ind_down));
+A(lin_ind_fill) = A(lin_ind_fill)' + lambda * weights(lin_ind(valid_ind_down),4); % edge above upper neighbor
 
-%A(lin_ind_diag) = ones(num_pix,1) + 2 * lambda * sum(weights, 2);
-
-%% solve linear system
-d_vec_pred = A \ b;
+% solve linear system
+%d_vec_pred = A \ b;
+M = sparse(A);
+d_vec_pred = pcg(M, b, [], 25);
 g = d_vec_pred;
+
+%% make depth prediction
+d_vec_pred = g;
+if use_inv_depth
+    d_vec_pred = max_depth ./ d_vec_pred;
+end
+if use_log_depth
+    d_vec_pred = exp(d_vec_pred)-1;
+end
+
+d_sq_error = (d_vec_train - d_vec_pred).^2;
+d_nom_error = d_vec_train - d_vec_pred;
+
+n_bins = 100;
+figure(10);
+hist(d_nom_error, n_bins);
+title('Depth Error');
+
+fprintf('Nominal Error\n');
+fprintf('Mean:\t%.03f\n', mean(d_nom_error));
+fprintf('Med:\t%.03f\n', median(d_nom_error));
+fprintf('Std:\t%.03f\n', std(d_nom_error));
+
+fprintf('\nSquared Error\n');
+fprintf('Mean:\t%.03f\n', mean(d_sq_error));
+fprintf('Med:\t%.03f\n', median(d_sq_error));
+fprintf('Min:\t%.03f\n', min(d_sq_error));
+fprintf('Max:\t%.03f\n', max(d_sq_error));
+
+D_pred = reshape(d_vec_pred, height, width);
+figure(11);
+subplot(1,2,1);
+imshow(D_pyr{reg_level});
+subplot(1,2,2);
+imshow(uint16(D_pred));
 
 %% junk code below
 
@@ -432,3 +474,42 @@ imshow(I_filt_responses{filt,level}(:,:,1));
 % for i = 1:num_S_filts
 %     S_filts(:,:,i) = imresize(S_filts_big(:,:,i), double(filt_size) / S_big_filt_size);
 % end
+
+%% sparse surf test
+d = 1.0;
+I_down = rgb2gray(imresize(I, d));
+J_down = rgb2gray(imresize(J, d));
+
+points_I = detectSURFFeatures(I_down);
+points_J = detectSURFFeatures(J_down);
+
+[features_I, valid_points_I] = extractFeatures(I_down, points_I);
+[features_J, valid_points_J] = extractFeatures(J_down, points_J);
+   
+indexPairs = matchFeatures(features_I, features_J);
+
+matchedPointsI = valid_points_I(indexPairs(:, 1), :);
+matchedPointsJ = valid_points_J(indexPairs(:, 2), :);
+
+figure;
+showMatchedFeatures(I, J, matchedPointsI, matchedPointsJ);
+
+%% dense sift test
+d = 0.05;
+I_down = imresize(I, d);
+J_down = imresize(J, d);
+
+sift_I = mexDenseSIFT(I_down);
+sift_J = mexDenseSIFT(J_down);
+
+par = struct();
+[sfwarpxi, sfwarpyi, ~] = SIFTflowc2f(sift_I, sift_J, par);
+
+figure;
+subplot(1,2,1);
+imshow(I_down);
+hold on;
+quiver(sfwarpxi, sfwarpyi);
+
+subplot(1,2,2);
+imshow(J_down);
