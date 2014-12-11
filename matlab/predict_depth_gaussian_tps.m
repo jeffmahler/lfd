@@ -1,10 +1,11 @@
-function [d_pred_vec, varargout] = predict_depth_gaussian(image_pyr, Phi, smooth_weights, ...
-    model, config)
+function [d_pred_vec, varargout] = predict_depth_gaussian_tps(image_pyr, ...
+    Phi, smooth_weights, tps_weights, model, config)
 %PREDICT_DEPTH_GAUSSIAN Predicts depth using gaussian model of both depth
 %  and smoothness, which can be solved as a linear system
 
 lambda = model.sigma_tex / model.sigma_smooth;
 gamma = model.sigma_tex / model.sigma_prior;
+nu = model.sigma_tex / model.sigma_tps;
 
 % temp weights matrix organized as (L R U D)
 height = image_pyr.im_height;
@@ -13,6 +14,7 @@ num_pix = height * width;
 A = zeros(num_pix);
 b = Phi * model.w;
 b = b + gamma * model.D_prior_vec;
+b = b + nu * model.D_tps_vec .* tps_weights;
 
 % if config.use_log_depth
 %     b = exp(b) - 1;
@@ -76,7 +78,8 @@ lin_ind_fill = sub2ind(mat_size, lin_ind_down, lin_ind);
 A(lin_ind_fill) = A(lin_ind_fill)' - lambda * smooth_weights(:,4);
 
 % update diagonal
-A(lin_ind_diag) = ones(num_pix,1) + lambda * sum(smooth_weights, 2) + gamma;
+A(lin_ind_diag) = ...
+    ones(num_pix,1) + lambda * sum(smooth_weights, 2) + gamma + nu * tps_weights;
 
 lin_ind_fill = ...
     sub2ind(mat_size, lin_ind_left(valid_ind_left), lin_ind_left(valid_ind_left));

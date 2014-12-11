@@ -1,4 +1,4 @@
-function [sigma_tex, sigma_smooth] = learn_sigma_tex(w, config)
+function [sigma_tex, sigma_smooth, sigma_prior] = learn_sigma_tex(model, config)
 %LEARN_SIGMA_TEX
 
 % create filter banks
@@ -26,7 +26,8 @@ end
 filter_banks = filter_banks(1:(cur_index-1));
 
 num_training = size(config.training_nums, 1);
-D_mse = zeros(num_training, 1);
+D_tex_mse = zeros(num_training, 1);
+D_prior_mse = zeros(num_training, 1);
 
 depth_weight_count = 0.0;
 sigma_smooth = 0.0;
@@ -61,9 +62,9 @@ for k = 1:num_training
     end
  
     % update max-likelihood tex depth error
-    D_pred_vec = Phi * w;
+    D_pred_vec = Phi * model.w;
     D_sq_error = (D_pred_vec - D_target_vec).^2;
-    D_mse(k) = mean(D_sq_error);
+    D_tex_mse(k) = mean(D_sq_error);
     
     % update max-likelihood smoothness param
     height = image_pyr.im_height;
@@ -75,15 +76,20 @@ for k = 1:num_training
     sigma_smooth = sigma_smooth + sum(sum(D_diff{4}));
     depth_weight_count = depth_weight_count + 4 * num_pix;
     
+    % update max-likelihood prior
+    D_prior_sq_error = (model.D_prior_vec - D_target_vec).^2;
+    D_prior_mse = mean(D_prior_sq_error);
+    
     if isnan(sigma_smooth)
         stop = 1; 
     end
 end
 % ML tex estimate
-sigma_tex = mean(D_mse);
+sigma_tex = mean(D_tex_mse);
 % ML sigma smooth estimate
 sigma_smooth = sigma_smooth / depth_weight_count;
-
+% ML sigma prior estimate
+sigma_prior = mean(D_prior_mse);
 
 end
 

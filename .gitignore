@@ -66,3 +66,4 @@ tpsopt/cmake_install.cmake
 *.zip
 *.targ.gz
 *.DS_Store
+results/*

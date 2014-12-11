@@ -30,7 +30,8 @@ for i = 1:num_levels
             %fprintf('Accumulating features for channel %d\n', j);
         end
         filt_resp = I_filt_responses{j, i};
-
+        [lev_height, lev_width, ~] = size(filt_resp);
+        
         % center
         filt_resp_big = imresize(filt_resp, 2^(i-1), 'nearest');
         Phi(:, start_I:end_I) = ...
@@ -39,21 +40,17 @@ for i = 1:num_levels
         end_I = start_I + num_filts - 1;
 
         % down
-        H = vision.GeometricTranslator;
-        H.OutputSize = 'Same as input image';
-        H.Offset = [-1, 0];
-        filt_resp_tr = step(H, filt_resp);
+        filt_resp_tr = zeros(lev_height, lev_width, num_filts);
+        filt_resp_tr(1:(lev_height-1),:,:) = filt_resp(2:lev_height,:,:);
         filt_resp_big = imresize(filt_resp_tr, 2^(i-1), 'nearest');
         Phi(:, start_I:end_I) = ...
             reshape(filt_resp_big, height*width, num_filts);
         start_I = start_I + num_filts;
         end_I = start_I + num_filts - 1;
-
+        
         % up
-        H = vision.GeometricTranslator;
-        H.OutputSize = 'Same as input image';
-        H.Offset = [1, 0];
-        filt_resp_tr = step(H, filt_resp);
+        filt_resp_tr = zeros(lev_height, lev_width, num_filts);
+        filt_resp_tr(2:lev_height,:,:) = filt_resp(1:(lev_height-1),:,:);
         filt_resp_big = imresize(filt_resp_tr, 2^(i-1), 'nearest');
         Phi(:, start_I:end_I) = ...
             reshape(filt_resp_big, height*width, num_filts);
@@ -61,10 +58,8 @@ for i = 1:num_levels
         end_I = start_I + num_filts - 1;
 
         % right
-        H = vision.GeometricTranslator;
-        H.OutputSize = 'Same as input image';
-        H.Offset = [0, -1];
-        filt_resp_tr = step(H, filt_resp);
+        filt_resp_tr = zeros(lev_height, lev_width, num_filts);
+        filt_resp_tr(:,1:(lev_width-1),:) = filt_resp(:,2:lev_width,:);
         filt_resp_big = imresize(filt_resp_tr, 2^(i-1), 'nearest');
         Phi(:, start_I:end_I) = ...
             reshape(filt_resp_big, height*width, num_filts);
@@ -72,10 +67,8 @@ for i = 1:num_levels
         end_I = start_I + num_filts - 1;
 
         % left
-        H = vision.GeometricTranslator;
-        H.OutputSize = 'Same as input image';
-        H.Offset = [0, 1];
-        filt_resp_tr = step(H, filt_resp);
+        filt_resp_tr = zeros(lev_height, lev_width, num_filts);
+        filt_resp_tr(:,2:lev_width,:) = filt_resp(:,1:(lev_width-1),:);
         filt_resp_big = imresize(filt_resp_tr, 2^(i-1), 'nearest');
         Phi(:, start_I:end_I) = ...
             reshape(filt_resp_big, height*width, num_filts);

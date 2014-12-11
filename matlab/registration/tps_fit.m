@@ -37,7 +37,7 @@ H(d+2:end, d+2:end) = H(d+2:end, d+2:end) + bend_coef * K_nn;
 H(2:d+1, 2:d+1) = H(2:d+1, 2:d+1) + diag(rot_coefs);
 
 f = -WQ' * y;
-f(2:d+1, 1:d) = f(2:d+1, 1:d) - diag(rot_coef);
+f(2:d+1, 1:d) = f(2:d+1, 1:d) - diag(rot_coefs);
 
 % solve eqp1 from python code
 n_vars = size(H, 1);

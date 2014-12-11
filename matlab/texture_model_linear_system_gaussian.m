@@ -1,4 +1,4 @@
-function [gram_matrix, target_vector, filter_banks] = ...
+function [gram_matrix, target_vector, filter_banks, varargout] = ...
     texture_model_linear_system_gaussian(config)
 % Computes a multiscale texture-based feature representation for each image
 % in the training set specified by the config file
@@ -9,8 +9,8 @@ function [gram_matrix, target_vector, filter_banks] = ...
 %
 % Upon completion, the best linear model is
 %   gram_matrix^{-1} * target_vector
-% and the max-likelihood smoothing parameter is
-%   sigma_smooth 
+% and the max-likelihood depth prior (vectorized) is
+%   D_vec_prior
 
 % matrices to store intermediate data
 num_training = size(config.training_nums, 1);
@@ -54,12 +54,32 @@ for k = 1:num_training
     % extract relevant data for the current RGBD pair
     start_time = tic;
     image_pyr = load_image_pyramid(rgb_filename, depth_filename, config);
+    %duration = toc(start_time);
+    %if mod(k-1, config.out_rate) == 0 && config.debug
+       %fprintf('Loading image pyramid took %.03f sec\n', duration);
+    %end
+    %start_time = tic;
     [Phi, ~] = ...
         extract_texture_features(image_pyr, filter_banks, config);
     duration = toc(start_time);
     
     if mod(k-1, config.out_rate) == 0 && config.debug
        fprintf('Feature extraction took %.03f sec\n', duration);
+    end
+    num_pix = image_pyr.im_height * image_pyr.im_width;
+    num_features = size(Phi,2);
+    
+    % save feature rep if desired
+    if config.save_individual_features
+        feature_filename = sprintf(config.feature_file_template, img_num);
+        
+        start_time = tic;
+        save(feature_filename, 'Phi');
+        duration = toc(start_time);
+        
+        if mod(k-1, config.out_rate) == 0 && config.debug
+            fprintf('Saving took %.03f sec\n', duration);
+        end
     end
     
     % form target depth_vector
@@ -78,11 +98,43 @@ for k = 1:num_training
         gram_matrix = gram_matrix + Phi' * Phi;
         target_vector = target_vector + Phi' * D_target_vec;
     else
-        num_features = size(Phi, 2);
         gram_matrix = Phi' * Phi;
         target_vector = Phi' * D_target_vec; 
     end
     
+    % accumulate simple depth prior avg
+    if nargout > 3
+        if ~exist('D_prior_vec', 'var')
+            D_prior_vec = zeros(num_pix, 1);
+        end
+        D_prior_vec = D_prior_vec + D_target_vec;
+    end
+    
+    % save stacked phis
+    if nargout > 4
+        if ~exist('Phi_stacked', 'var')
+            Phi_stacked = zeros(num_training*num_pix, num_features);
+            start_I_p = 1;
+            end_I_p = start_I_p + num_pix - 1;
+        end
+        Phi_stacked(start_I_p:end_I_p,:) = Phi;
+        start_I_p = start_I_p + num_pix;
+        end_I_p = start_I_p + num_pix-1;
+    end
+    
+    % save stacked target_depths
+    if nargout > 5
+        if ~exist('D_target_stacked', 'var')
+            D_target_stacked = zeros(num_training*num_pix, 1);
+            start_I_d = 1;
+            end_I_d = start_I_d + num_pix - 1;
+        end
+        D_target_stacked(start_I_d:end_I_d,:) = D_target_vec;
+        start_I_d = start_I_d + num_pix;
+        end_I_d = start_I_d + num_pix - 1;
+    end
+        
+    % for debugging only
     if sum(isnan(target_vector)) > 0
        stop = 1; 
     end
@@ -96,6 +148,16 @@ for k = 1:num_training
 
         save(config.tmp_training_file, 'training_snapshot');
     end
+end
+
+if nargout > 3
+    varargout{1} = D_prior_vec / num_training;
+end
+if nargout > 4
+    varargout{2} = Phi_stacked;
+end
+if nargout > 5
+    varargout{3} = D_target_stacked;
 end
 
 end

@@ -20,14 +20,18 @@ y = A' * K + B * [x ones(n,1)]';
 y = y';
 
 bend_coef = 0.1;
-rot_coef = 0.001;
-w = ones(n,1);
-tps = tps_fit(x, y, bend_coef, rot_coef, w);
+rot_coef = 100000;
+n_fit = n / 2;
+x_fit = x(1:n_fit,:);
+y_fit = y(1:n_fit,:);
+w = ones(n_fit,1);
+tps = tps_fit(x_fit, y_fit, bend_coef, rot_coef, w);
 
 x_t = tps_apply(tps, x);
-costs = tps_objective(tps, x, y);
+costs = tps_objective(tps, x_fit, y_fit);
 
 y_diff = y - x_t;
+y_diff_orig = y - x;
 
 if vis
     figure(1);

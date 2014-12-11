@@ -81,4 +81,10 @@ image_pyr.im_height = size(D_pyr{1}, 1);
 image_pyr.im_width = size(D_pyr{1}, 2);
 image_pyr.max_depth = max(max(D_pyr{1}));
 
+% camera intrinsics
+focal_length = config.focal / (2^(config.start_level-1));
+image_pyr.K = [focal_length,            0,  image_pyr.im_width / 2;
+                          0, focal_length, image_pyr.im_height / 2;
+                          0,            0,                       1];
+
 end

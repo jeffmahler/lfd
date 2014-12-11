@@ -18,9 +18,6 @@ subplot(1,2,2);
 imshow(histeq(D));
 title('Depth');
 
-%% test corrs
-[l, r] = get_corrs(I,J);
-
 %% create image pyramids
 num_levels = 3;
 start_level = 3;
