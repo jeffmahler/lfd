@@ -1,5 +1,5 @@
 function [weights, D_diffs_weighted] = ...
-    create_depth_diff_weights(image_pyr, I_gradients, config)
+    create_texture_diff_weights(image_pyr, I_filt_resp, num_filts, config)
 %EXTRACT_DEPTH_DIFF_WEIGHTS Creates both image intensity weights and
 %   computes depth difference for monocular depth smoothness regularization
 
@@ -31,20 +31,37 @@ use_log_depth = config.use_log_depth;
 height = image_pyr.im_height;
 width = image_pyr.im_width;
 num_pix = height * width;
+num_features = size(I_filt_resp, 2);
 
 weights = zeros(num_pix, num_neighbors);
 D_diff = double(image_pyr.D_pyr{base_level});
 
 if use_inv_depth
-   D_diff = config.max_depth ./ (D_diff+1); 
+   D_diff = config.max_depth ./ (D_diff + 1); 
 end
 if use_log_depth
    D_diff = log(D_diff+1); 
 end
 
+% compute texture gradients
+tex_resp_im = reshape(I_filt_resp, height, width, num_features);
+tex_abs_diff_x = zeros(height, width);
+tex_abs_diff_y = zeros(height, width);
+for i = 1:num_filts
+    diff_tex_left = conv2(tex_resp_im(:,:,i), diff_left_filter, 'same');
+    diff_tex_right = conv2(tex_resp_im(:,:,i), diff_right_filter, 'same');
+    tex_abs_diff_x = tex_abs_diff_x + abs(diff_tex_left) + abs(diff_tex_right);
+    
+    diff_tex_up = conv2(tex_resp_im(:,:,i), diff_up_filter, 'same');
+    diff_tex_down = conv2(tex_resp_im(:,:,i), diff_down_filter, 'same');
+    tex_abs_diff_y = tex_abs_diff_y + abs(diff_tex_up) + abs(diff_tex_down);
+end
+tex_abs_diff_x = tex_abs_diff_x / (2 * num_filts);
+tex_abs_diff_y = tex_abs_diff_y / (2 * num_filts);
+
 % compute weights based on image color difference (could also be texture)
-diff_D_weights_x = 1.0 ./ (1.0 + exp(grad_scale * abs(I_gradients{1, base_level})));
-diff_D_weights_y = 1.0 ./ (1.0 + exp(grad_scale * abs(I_gradients{2, base_level})));
+diff_D_weights_x = 1.0 ./ (1.0 + exp(grad_scale * tex_abs_diff_x));
+diff_D_weights_y = 1.0 ./ (1.0 + exp(grad_scale * tex_abs_diff_y));
 weights(:,1) = diff_D_weights_x(:);
 weights(:,2) = diff_D_weights_x(:);
 weights(:,3) = diff_D_weights_y(:);

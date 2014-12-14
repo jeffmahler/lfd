@@ -7,21 +7,26 @@ cur_index = 1;
 d = 2; % dimension of filters
 num_possible_filts = 5;
 filter_banks = cell(1,num_possible_filts);
+num_filters = 0;
 
 if config.use_serge_filts
     filter_banks{cur_index} = FbMake(d, 1, config.show);
+    num_filters = num_filters + size(filter_banks{cur_index}, 3);
     cur_index = cur_index+1;
 end
 if config.use_doog_filts
     filter_banks{cur_index} = FbMake(d, 2, config.show);
+    num_filters = num_filters + size(filter_banks{cur_index}, 3);
     cur_index = cur_index+1;
 end
 if config.use_LM_filts
     filter_banks{cur_index} = makeLMfilters(config.filt_size);
+    num_filters = num_filters + size(filter_banks{cur_index}, 3);
     cur_index = cur_index+1;
 end
 if config.use_LW_filts
     filter_banks{cur_index} = makeLWfilters();
+    num_filters = num_filters + size(filter_banks{cur_index}, 3);
     cur_index = cur_index+1;
 end
 filter_banks = filter_banks(1:(cur_index-1));
@@ -43,9 +48,11 @@ for k = 1:num_pred
     % load an RGBD pair and extract features
     image_pyr = load_image_pyramid(rgb_filename, depth_filename, config);
     [Phi, I_gradients] = ...
-        extract_texture_features(image_pyr, filter_banks, config);
+        extract_texture_features(image_pyr, filter_banks, config); 
     [weights, ~] = ...
-        create_depth_diff_weights(image_pyr, I_gradients, config);
+         create_texture_diff_weights(image_pyr, Phi, num_filters, config);
+    % [weights, ~] = ...
+    %    create_depth_diff_weights(image_pyr, I_gradients, config);
     
     if ~exist('D_nom_error', 'var') || ~exist('D_sq_error', 'var')
         num_pix = image_pyr.im_height * image_pyr.im_width;
@@ -59,7 +66,7 @@ for k = 1:num_pred
     
     % invert depth back to true scale
     if config.use_inv_depth
-       D_pred_vec = config.max_depth ./ D_pred_vec;
+       D_pred_vec = (config.max_depth ./ D_pred_vec) - 1;
     end
     % exponentiate to get depth
     if config.use_log_depth

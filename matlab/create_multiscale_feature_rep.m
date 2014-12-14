@@ -20,6 +20,7 @@ Phi = zeros(num_pix, num_features);
 % indices for adding to the matrix
 start_I = 1;
 end_I = start_I + num_filts - 1;
+step = uint8(ceil(config.tex_bandwidth));
 
 for i = 1:num_levels
     if config.debug
@@ -41,7 +42,9 @@ for i = 1:num_levels
 
         % down
         filt_resp_tr = zeros(lev_height, lev_width, num_filts);
-        filt_resp_tr(1:(lev_height-1),:,:) = filt_resp(2:lev_height,:,:);
+        filt_resp_tr(1:(lev_height-step),:,:) = filt_resp((1+step):lev_height,:,:);
+        filt_resp_tr((lev_height-step+1):end,:,:) = ...
+            repmat(filt_resp(lev_height,:,:), step, 1, 1);
         filt_resp_big = imresize(filt_resp_tr, 2^(i-1), 'nearest');
         Phi(:, start_I:end_I) = ...
             reshape(filt_resp_big, height*width, num_filts);
@@ -50,7 +53,9 @@ for i = 1:num_levels
         
         % up
         filt_resp_tr = zeros(lev_height, lev_width, num_filts);
-        filt_resp_tr(2:lev_height,:,:) = filt_resp(1:(lev_height-1),:,:);
+        filt_resp_tr((1+step):lev_height,:,:) = filt_resp(1:(lev_height-step),:,:);
+        filt_resp_tr(1:step,:,:) = ...
+            repmat(filt_resp(1,:,:), step, 1, 1);
         filt_resp_big = imresize(filt_resp_tr, 2^(i-1), 'nearest');
         Phi(:, start_I:end_I) = ...
             reshape(filt_resp_big, height*width, num_filts);
@@ -59,7 +64,9 @@ for i = 1:num_levels
 
         % right
         filt_resp_tr = zeros(lev_height, lev_width, num_filts);
-        filt_resp_tr(:,1:(lev_width-1),:) = filt_resp(:,2:lev_width,:);
+        filt_resp_tr(:,1:(lev_width-step),:) = filt_resp(:,(1+step):lev_width,:);
+        filt_resp_tr(:,(lev_width-step+1):end,:) = ...
+            repmat(filt_resp(:,lev_width,:), 1, step, 1);
         filt_resp_big = imresize(filt_resp_tr, 2^(i-1), 'nearest');
         Phi(:, start_I:end_I) = ...
             reshape(filt_resp_big, height*width, num_filts);
@@ -68,7 +75,9 @@ for i = 1:num_levels
 
         % left
         filt_resp_tr = zeros(lev_height, lev_width, num_filts);
-        filt_resp_tr(:,2:lev_width,:) = filt_resp(:,1:(lev_width-1),:);
+        filt_resp_tr(:,(1+step):lev_width,:) = filt_resp(:,1:(lev_width-step),:);
+        filt_resp_tr(:,1:step,:) = ...
+            repmat(filt_resp(:,1,:), 1, step, 1);
         filt_resp_big = imresize(filt_resp_tr, 2^(i-1), 'nearest');
         Phi(:, start_I:end_I) = ...
             reshape(filt_resp_big, height*width, num_filts);

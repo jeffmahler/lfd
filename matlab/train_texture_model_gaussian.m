@@ -11,11 +11,14 @@ config.feature_dir = 'Features';
 config.rgb_name = 'img_%04d.png';
 config.depth_name = 'img_%04d_abs_smooth.png';
 config.feature_name = 'img_%04d_features.mat';
-config.training_pct = 0.6;
-config.total_num_files = 10;%849  % number of files in kinectdata 
+config.training_pct = 0.75;
+config.total_num_files = 849;  % number of files in kinectdata 
 config.training_nums = randsample(config.total_num_files, ...
    uint16(config.training_pct * config.total_num_files)) - 1;
 config.test_nums = setdiff(0:(config.total_num_files-1), config.training_nums)';
+
+% config.training_nums = [4; 5; 8; 1; 0; 7];
+% config.test_nums = [3; 6; 9; 2];
 
 % data reading
 config.num_levels = 3;
@@ -33,23 +36,24 @@ config.feature_file_template = ...
 config.use_texture_energy = 1;
 config.use_energy = 1;
 config.use_kurtosis = 1;
-config.patch_size_x = 3;
-config.patch_size_y = 3;
+config.patch_size_x = 6;
+config.patch_size_y = 6;
 config.save_individual_features = 0;
 config.extract_features = 1;
 config.corr_scale = 4.0;
+config.tex_bandwidth = 3.2;
 
 % filters
 config.use_serge_filts = 1;
-config.use_doog_filts = 0;
-config.use_LM_filts = 0;
+config.use_doog_filts = 1;
+config.use_LM_filts = 1;
 config.use_LW_filts = 1;
 config.filt_size = 13.0;
 
 % depth params
 config.use_inv_depth = 0;
 config.use_log_depth = 1;
-config.grad_scale = 5.0; % higher means more gradients
+config.grad_scale = 1e-2; % higher means more gradients
 config.max_depth = 36155.0;
 config.focal = 531.0;
 
@@ -84,12 +88,16 @@ linear_system = struct();
     texture_model_linear_system_gaussian(config);
 save(sprintf('%s/linear_system.mat', config.out_dir), 'linear_system');
 
+% save(sprintf('%s/Phi_stacked.mat', config.out_dir), 'Phi_stacked');
+% save(sprintf('%s/D_target_stacked.mat', config.out_dir), 'D_target_stacked');
+
 %% learn a model
 disp('Learning linear model');
 model = struct();
 num_features = size(linear_system.A,1);
 
 % gaussian model
+config.beta = 1e-2;
 model.w = (linear_system.A + config.beta * eye(num_features)) \ linear_system.b;
 
 % lasso model
@@ -115,22 +123,27 @@ save(sprintf('%s/training_error.mat', config.out_dir), 'train_error');
 
 %% test error
 disp('Computing test error');
-
-%load('data/VOCB3DO/Features/corrs.mat');
-model.sigma_tps = 0.2*model.sigma_tex; % makes for weights = 1 later
-model.sigma_smooth = 0.1*model.sigma_tex; % makes for weights = 1 later
-config.num_tps_iter = 30;
-config.bend_coef = 1e-1;
-config.rot_coef = 1e-4;
-config.grad_scale = 1e-2;
-
 test_error = struct();
-%[test_error.D_nom_error, test_error.D_sq_error, test_D_pred] = ...
-%    depth_error_gaussian(config.test_nums, model, config);
-[test_error.D_nom_error, test_error.D_sq_error, test_D_pred, corrs] = ...
-    depth_error_gaussian_tps(config.training_nums(3), ...
-    config.test_nums(4), model, config, corrs);
+[test_error.D_nom_error, test_error.D_sq_error, test_D_pred] = ...
+    depth_error_gaussian(config.test_nums, model, config);
 save(sprintf('%s/test_error.mat', config.out_dir), 'test_error');
+
+%% test error (tps version)
+% disp('Computing test error');
+% 
+% load('data/VOCB3DO/Features/siftflow_corrs.mat');
+% model.sigma_tps = 10*model.sigma_tex; % makes for weights = 1 later
+% %model.sigma_smooth = 0.01*model.sigma_tex; % makes for weights = 1 later
+% %model.sigma_prior = 1*model.sigma_tex; % makes for weights = 1 later
+% config.num_tps_iter = 10;
+% config.bend_coef = 10;
+% config.rot_coef = 1e-4;
+% 
+% test_error = struct();
+% [test_error.D_nom_error, test_error.D_sq_error, test_D_pred, corrs] = ...
+%     depth_error_gaussian_tps(config.training_nums(207), ...
+%     config.test_nums(14), model, config, corrs);
+% %save(sprintf('%s/test_error.mat', config.out_dir), 'test_error');
 
 %% visualize prior
 % figure(3);
@@ -139,7 +152,19 @@ save(sprintf('%s/test_error.mat', config.out_dir), 'test_error');
 % imshow(histeq(uint16(D_im_prior)));
 % title('Depth Prior');
 
-%% get corresponding points
+%% redo hist
+% D_nom_error = train_error.D_nom_error;
+% figure(10);
+% high = prctile(D_nom_error(:), 100 - config.hist_prctile);
+% low = prctile(D_nom_error(:), config.hist_prctile);
+% bdry = max(abs(high), abs(low));
+% bin_width = 2*bdry / config.n_bins;
+% bin_edges = -bdry:bin_width:bdry;
+% h = histc(D_nom_error(:), bin_edges);
+% bar(bin_edges, h, 'histc');
+% %hist(D_nom_error(:), config.n_bins);
+% title('Depth Error');
+% xlim([-bdry, bdry]);
 
 
 

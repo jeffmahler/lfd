@@ -9,6 +9,9 @@ patch_size_y = config.patch_size_y;
 avg_filter = ones(2*patch_size_x+1, 2*patch_size_y+1);
 avg_filter = avg_filter / ((2*patch_size_x+1) * (2*patch_size_y+1));
 
+win_size = [2*patch_size_x+1, 2*patch_size_y+1];
+gaussian_filter = fspecial('gaussian', win_size, config.tex_bandwidth);
+
 % compute num energy opts
 num_energy = 1 + config.use_energy + config.use_kurtosis;
 
@@ -25,20 +28,20 @@ for i = 1:num_levels
             abs_I_response = abs(I_response(:,:,k)); % absolute value of response
         
             % compute sum of powers of abs values over a window
-            I_energy(:,:,index) = conv2(abs_I_response, avg_filter, 'same');
+            I_energy(:,:,index) = conv2(abs_I_response, gaussian_filter, 'same');
             index = index + 1;
             
             % compute energy (sum of abs sq)
             if config.use_energy
                 eng_I_response = abs_I_response.^2;
-                I_energy(:,:,index) = conv2(eng_I_response, avg_filter, 'same');
+                I_energy(:,:,index) = conv2(eng_I_response, gaussian_filter, 'same');
                 index = index + 1;
             end
 
             % compute kurtosis (sum of abs to the fourth)
             if config.use_kurtosis
                 kur_I_response = abs_I_response.^4;
-                I_energy(:,:,index) = conv2(kur_I_response, avg_filter, 'same');
+                I_energy(:,:,index) = conv2(kur_I_response, gaussian_filter, 'same');
                 index = index + 1;
             end
         end

@@ -2,13 +2,18 @@
 data_dir = 'data/VOCB3DO';
 depth_dir = 'RegisteredDepthData';
 rgb_dir = 'KinectColor';
-img_name = 'img_0000';
+img_name = 'img_0008';
+img2_name = 'img_0009';
 
 rgb_filename = sprintf('%s/%s/%s.png', data_dir, rgb_dir, img_name);
 depth_filename = sprintf('%s/%s/%s_abs_smooth.png', data_dir, depth_dir, img_name);
 
 I = imread(rgb_filename);
 D = imread(depth_filename);
+
+rgb2_filename = sprintf('%s/%s/%s.png', data_dir, rgb_dir, img2_name);
+
+J = imread(rgb2_filename);
 
 figure(1);
 subplot(1,2,1);
@@ -18,6 +23,25 @@ subplot(1,2,2);
 imshow(histeq(D));
 title('Depth');
 
+%% match features
+I_gray = rgb2gray(I);
+J_gray = rgb2gray(J);
+points1 = detectBRISKFeatures(I_gray);
+points2 = detectBRISKFeatures(J_gray);
+
+imshow(I); hold on;
+plot(points1.selectStrongest(20));
+
+[features1, valid_points1] = extractFeatures(I_gray, points1);
+[features2, valid_points2] = extractFeatures(J_gray, points2);
+
+indexPairs = matchFeatures(features1, features2); 
+
+matchedPoints1 = valid_points1(indexPairs(:, 1), :);
+matchedPoints2 = valid_points2(indexPairs(:, 2), :);
+   
+figure;
+showMatchedFeatures(I_gray, J_gray, matchedPoints1, matchedPoints2);
 %% create image pyramids
 num_levels = 3;
 start_level = 3;

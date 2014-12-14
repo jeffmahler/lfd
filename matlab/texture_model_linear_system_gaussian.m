@@ -87,7 +87,7 @@ for k = 1:num_training
     D_vec = D_vec(:);
     D_target_vec = D_vec;
     if config.use_inv_depth
-       D_target_vec = config.max_depth ./ D_vec;
+       D_target_vec = config.max_depth ./ (D_vec + 1);
     end
     if config.use_log_depth
        D_target_vec = log(D_vec + 1);
