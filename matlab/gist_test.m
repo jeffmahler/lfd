@@ -1,12 +1,55 @@
-%% sift dense corrs
-rgb_filename = sprintf('%s/%s/%s.png', data_dir, rgb_dir, 'img_0047');
-I = imread(rgb_filename);
-rgb2_filename = sprintf('%s/%s/%s.png', data_dir, rgb_dir, 'img_0046');
-J = imread(rgb2_filename);
+% foolin around with gist
+num_images = 849;
+test_ind = round(rand() * (num_images-1) + 1);
 
+data_dir = 'data/VOCB3DO';
+rgb_dir = 'KinectColor';
+rgb_name = 'img_%04d.png';
+rgb_template = sprintf('%s/%s/%s', data_dir, rgb_dir, rgb_name);
+
+ind = 1;
+gist_features = zeros(512, num_images - 1);
+train_images = cell(1,num_images-1);
+
+for i = 0:(num_images-1)
+    rgb_filename = sprintf(rgb_template, i);
+    fprintf('Loading image %d\n', i);
+
+    I = imread(rgb_filename);
+    if i ~= test_ind
+        gist_features(:,ind) = im2gist(I);
+        train_images{ind} = I;
+        ind = ind + 1;
+    else
+        test_image = I;
+        test_gist = im2gist(I);
+    end
+end
+
+kd = KDTreeSearcher(gist_features');
+
+%% lookup and display results
+K = 10;
+indices = knnsearch(kd, test_gist', 'K', K);
+
+figure;
+subplot(1,K+1,1);
+imshow(test_image);
+title('Query image');
+
+for j = 1:K
+    subplot(1,K+1,j+1);
+    imshow(train_images{indices(j)});
+    title(sprintf('K = %d', j));
+end
+
+%% sift flow stuff
 cellsize=3;
 gridspacing=1;
 winSize = 3;
+
+I = test_image;
+J = train_images{indices(1)};
 
 I_small = double(imresize(I, 0.125));
 J_small = double(imresize(J, 0.125));
@@ -25,18 +68,6 @@ SIFTflowpara.nTopIterations = 60;
 SIFTflowpara.nIterations= 30;
 
 tic;[vx,vy,energylist]=SIFTflowc2f(sift1,sift2,SIFTflowpara);toc
-
-%%
-% I_gray = double(rgb2gray(I_small));
-% J_gray = double(rgb2gray(J_small));
-[warpJ, mask]=warpImage(J_small,vx,vy);
-figure(1);
-subplot(1,3,1);
-imshow(uint8(I_small));
-subplot(1,3,2);
-imshow(uint8(J_small));
-subplot(1,3,3);
-imshow(uint8(warpJ));
 
 %%
 [X,Y]=meshgrid(1:80,1:60);
@@ -68,18 +99,20 @@ total_corrs = 2000;
 rand_indices = randsample(num_corrs, total_corrs);
 corrs = {[I_pts(rand_indices,:) J_pts(rand_indices,:)]};
 save('data/VOCB3DO/Features/siftflow_corrs.mat', 'corrs');
-
+%%
 figure(2);
 imshow([uint8(I_small) uint8(J_small)]);
 
 hold on;
 corr_colors = zeros(num_corrs, 3);
 corr_colors(:,1) = norm_diff;
-for i = 1:101:num_corrs
-    scatter(I_pts(i,1), I_pts(i,2), 'MarkerFaceColor', corr_colors(i,:), 'MarkerEdgeColor', corr_colors(i,:));
-    scatter(J_pts(i,1) + 80, J_pts(i,2), 'MarkerFaceColor', corr_colors(i,:), 'MarkerEdgeColor', corr_colors(i,:));
-    plot([I_pts(i,1); J_pts(i,1) + 80],...
-         [I_pts(i,2); J_pts(i,2)], 'g');
+for i = 1:num_corrs
+    if norm_diff(i) > 0.75
+        scatter(I_pts(i,1), I_pts(i,2), 'MarkerFaceColor', corr_colors(i,:), 'MarkerEdgeColor', corr_colors(i,:));
+        scatter(J_pts(i,1) + 80, J_pts(i,2), 'MarkerFaceColor', corr_colors(i,:), 'MarkerEdgeColor', corr_colors(i,:));
+        plot([I_pts(i,1); J_pts(i,1) + 80],...
+             [I_pts(i,2); J_pts(i,2)], 'g');
+    end
 end
 
 %%

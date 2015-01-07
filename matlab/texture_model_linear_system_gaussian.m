@@ -1,4 +1,4 @@
-function [gram_matrix, target_vector, filter_banks, varargout] = ...
+function [gram_matrices, target_vectors, filter_banks, varargout] = ...
     texture_model_linear_system_gaussian(config)
 % Computes a multiscale texture-based feature representation for each image
 % in the training set specified by the config file
@@ -93,15 +93,47 @@ for k = 1:num_training
        D_target_vec = log(D_vec + 1);
     end
     
+    % compute Phi indices for local models
+    lin_ind = 1:num_pix;
+    [row_ind, ~] = ind2sub([image_pyr.im_height, image_pyr.im_width], lin_ind);
+    
     % rank-1 update to the linear system
-    if exist('gram_matrix', 'var') && exist('target_vector', 'var')
-        gram_matrix = gram_matrix + Phi' * Phi;
-        target_vector = target_vector + Phi' * D_target_vec;
+    if exist('gram_matrices', 'var') && exist('target_vectors', 'var')
+%         gram_matrix = gram_matrix + Phi' * Phi;
+%         target_vector = target_vector + Phi' * D_target_vec;
     else
-        gram_matrix = Phi' * Phi;
-        target_vector = Phi' * D_target_vec; 
+        vert_model_size = ceil(image_pyr.im_height / config.num_vert_models);
+        gram_matrices = cell(1,vert_model_size);
+        target_vectors = cell(1,vert_model_size);
+        init_matrices = 1;
+%         gram_matrix = Phi' * Phi;
+%         target_vector = Phi' * D_target_vec; 
     end
     
+    % accumulate vertical models
+    start_row = 1;
+    end_row = min(start_row + vert_model_size, image_pyr.im_height+1);
+    for j = 1:config.num_vert_models
+        v_row_ind = row_ind >= start_row & row_ind < end_row;
+        v_lin_ind = lin_ind(v_row_ind);
+        Phi_v = Phi(v_lin_ind,:);
+        D_v = D_target_vec(v_lin_ind);
+        
+        if init_matrices
+            gram_matrices{j} = Phi_v' * Phi_v;
+            target_vectors{j} = Phi_v' * D_v;
+        else
+            gram_matrices{j} = gram_matrices{j} + Phi_v' * Phi_v;
+            target_vectors{j} = target_vectors{j} + Phi_v' * D_v;
+        end
+        
+        start_row = start_row + vert_model_size;
+        end_row = min(start_row + vert_model_size, image_pyr.im_height+1);
+    end
+    if init_matrices
+        init_matrices = 0;
+    end
+
     % accumulate simple depth prior avg
     if nargout > 3
         if ~exist('D_prior_vec', 'var')
@@ -135,14 +167,14 @@ for k = 1:num_training
     end
         
     % for debugging only
-    if sum(isnan(target_vector)) > 0
+    if sum(isnan(target_vectors{1})) > 0
        stop = 1; 
     end
     
     % snapshot to prevent training data loss
     if mod(k-1, config.snapshot_rate) == 0 || k == (num_training - 1)
-        training_snapshot.gram_matrix = gram_matrix;
-        training_snapshot.target_vector = target_vector;
+        training_snapshot.gram_matrix = gram_matrices;
+        training_snapshot.target_vector = target_vectors;
         training_snapshot.iter = k;
         training_snapshot.rgb_filename = rgb_filename;
 

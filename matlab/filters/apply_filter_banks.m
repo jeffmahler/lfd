@@ -17,6 +17,11 @@ for i = 1:num_levels
         imgradientxy(image_pyr.I_pyr{i}(:,:,1));
     for j = 1:channels
         cur_I = image_pyr.I_pyr{i}(:,:,j);
+        
+%         figure(80);
+%         subplot(1,3,1);
+%         imagesc(cur_I);
+        
         for k = 1:num_filters
             if k == 1
                 I_filt_responses{j, i} = ...
@@ -26,6 +31,13 @@ for i = 1:num_levels
                     cat(3, I_filt_responses{j, i}, ...
                         FbApply2d(cur_I, filter_banks{k}, 'same', show));
             end
+%             for l = 1:40
+%                 subplot(1,3,2);
+%                 imagesc(I_filt_responses{j, i}(:,:,l));
+%                 subplot(1,3,3);
+%                 imagesc(filter_banks{k}(:,:,l));
+%                 pause(5);
+%             end
         end
     end
 end

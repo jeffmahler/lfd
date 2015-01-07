@@ -12,7 +12,7 @@ config.rgb_name = 'img_%04d.png';
 config.depth_name = 'img_%04d_abs_smooth.png';
 config.feature_name = 'img_%04d_features.mat';
 config.training_pct = 0.75;
-config.total_num_files = 849;  % number of files in kinectdata 
+config.total_num_files = 10;%849;  % number of files in kinectdata 
 config.training_nums = randsample(config.total_num_files, ...
    uint16(config.training_pct * config.total_num_files)) - 1;
 config.test_nums = setdiff(0:(config.total_num_files-1), config.training_nums)';
@@ -36,29 +36,30 @@ config.feature_file_template = ...
 config.use_texture_energy = 1;
 config.use_energy = 1;
 config.use_kurtosis = 1;
-config.patch_size_x = 6;
-config.patch_size_y = 6;
+config.patch_size_x = 5;
+config.patch_size_y = 5;
 config.save_individual_features = 0;
 config.extract_features = 1;
 config.corr_scale = 4.0;
-config.tex_bandwidth = 3.2;
+config.tex_bandwidth = 2.5;
 
 % filters
 config.use_serge_filts = 1;
-config.use_doog_filts = 1;
-config.use_LM_filts = 1;
+config.use_doog_filts = 0;
+config.use_LM_filts = 0;
 config.use_LW_filts = 1;
 config.filt_size = 13.0;
 
 % depth params
 config.use_inv_depth = 0;
 config.use_log_depth = 1;
-config.grad_scale = 1e-2; % higher means more gradients
+config.grad_scale = 5e-3; % higher means more gradients
 config.max_depth = 36155.0;
 config.focal = 531.0;
 
 % learning params
-config.beta = 1e4;
+config.num_vert_models = 10;
+config.beta = 1e2;
 config.tol = 1e-6;
 config.max_iters = 300;
 
@@ -86,7 +87,8 @@ config.hund_um_to_m = 1e-4;
 linear_system = struct();
 [linear_system.A, linear_system.b, filter_banks, D_prior] = ...%, Phi_stacked, D_target_stacked] =  ...
     texture_model_linear_system_gaussian(config);
-save(sprintf('%s/linear_system.mat', config.out_dir), 'linear_system');
+save(sprintf('%s/linear_system', config.out_dir), 'linear_system');
+save(sprintf('%s/config', config.out_dir), 'config');
 
 % save(sprintf('%s/Phi_stacked.mat', config.out_dir), 'Phi_stacked');
 % save(sprintf('%s/D_target_stacked.mat', config.out_dir), 'D_target_stacked');
@@ -94,12 +96,15 @@ save(sprintf('%s/linear_system.mat', config.out_dir), 'linear_system');
 %% learn a model
 disp('Learning linear model');
 model = struct();
-num_features = size(linear_system.A,1);
+num_features = size(linear_system.A{1},1);
 
 % gaussian model
-config.beta = 1e-2;
-model.w = (linear_system.A + config.beta * eye(num_features)) \ linear_system.b;
-
+model.num_vert_predictors = config.num_vert_models;
+model.w = cell(1,model.num_vert_predictors);
+for i = 1:model.num_vert_predictors
+    fprintf('Learning weights %d\n', i);
+    model.w{i} = (linear_system.A{i} + config.beta * eye(num_features)) \ linear_system.b{i};
+end
 % lasso model
 % [B, fit_info] = ...
 %     lasso(Phi_stacked(:,1:(num_features-1)), D_target_stacked, 'Lambda', config.beta);
@@ -110,6 +115,7 @@ model.beta = config.beta;
 model.D_prior_vec = D_prior;
 
 %% learn max likelihood variances
+%config.grad_scale = 1e-4;
 [model.sigma_tex, model.sigma_smooth, model.sigma_prior] = ...
     learn_sigma_tex(model, config);
 save(sprintf('%s/model.mat', config.out_dir), 'model');
@@ -154,7 +160,7 @@ save(sprintf('%s/test_error.mat', config.out_dir), 'test_error');
 
 %% redo hist
 % D_nom_error = train_error.D_nom_error;
-% figure(10);
+% figure(11);
 % high = prctile(D_nom_error(:), 100 - config.hist_prctile);
 % low = prctile(D_nom_error(:), config.hist_prctile);
 % bdry = max(abs(high), abs(low));
@@ -166,5 +172,25 @@ save(sprintf('%s/test_error.mat', config.out_dir), 'test_error');
 % title('Depth Error');
 % xlim([-bdry, bdry]);
 
+%%
+% old_linear_system = linear_system;
+% old_model = model;
+% 
+% for i = 2:config.num_vert_models
+%     linear_system.A{1} = linear_system.A{1} + linear_system.A{i};
+%     linear_system.b{1} = linear_system.b{1} + linear_system.b{i};
+% end
+% config.num_vert_models = 1;
 
+%%
+% Nominal Error
+% Mean:	0.430
+% Med:	0.090
+% Std:	1.042
+% 
+% Squared Error
+% Mean:	1.269
+% Med:	0.137
+% Min:	0.000
+% Max:	50.178
 

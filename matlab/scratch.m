@@ -12,16 +12,29 @@ I = imread(rgb_filename);
 D = imread(depth_filename);
 
 rgb2_filename = sprintf('%s/%s/%s.png', data_dir, rgb_dir, img2_name);
+depth2_filename = sprintf('%s/%s/%s_abs_smooth.png', data_dir, depth_dir, img2_name);
 
 J = imread(rgb2_filename);
+DJ = imread(depth2_filename);
 
-figure(1);
+figure(99);
 subplot(1,2,1);
 imshow(I);
 title('RGB');
 subplot(1,2,2);
 imshow(histeq(D));
 title('Depth');
+
+%% depth transfer stuff
+h = 480; w = 640;
+Cv = 7; %Number of candidate videos to use for training
+Cf = 1; %Number of candidate frames from each video (since this code 
+        % demonstrates on a single-image dataset, each video only contains
+        % one frame).
+project = initializeProject(Cv, Cf, [h,w]);
+project.path.data = dt_dir;
+
+createData(dt_dir, I, D, [], false);
 
 %% match features
 I_gray = rgb2gray(I);
