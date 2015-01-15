@@ -82,6 +82,12 @@ for k = 1:num_training
         end
     end
     
+    % compute normals
+    %disp('Before compute norms');
+    N_im = compute_normals(image_pyr, config);
+    N_vec = reshape(N_im, [num_pix, 3]);
+    %disp('After compute norms');
+    
     % form target depth_vector
     D_vec = double(image_pyr.D_pyr{1});
     D_vec = D_vec(:);
@@ -105,12 +111,14 @@ for k = 1:num_training
         vert_model_size = ceil(image_pyr.im_height / config.num_vert_models);
         gram_matrices = cell(1,vert_model_size);
         target_vectors = cell(1,vert_model_size);
+        normal_vectors = cell(3,vert_model_size);
         init_matrices = 1;
 %         gram_matrix = Phi' * Phi;
 %         target_vector = Phi' * D_target_vec; 
     end
     
     % accumulate vertical models
+    %disp('Before mat mult');
     start_row = 1;
     end_row = min(start_row + vert_model_size, image_pyr.im_height+1);
     for j = 1:config.num_vert_models
@@ -122,9 +130,17 @@ for k = 1:num_training
         if init_matrices
             gram_matrices{j} = Phi_v' * Phi_v;
             target_vectors{j} = Phi_v' * D_v;
+            for n = 1:3
+                N_v = N_vec(v_lin_ind,n);
+                normal_vectors{n, j} = Phi_v' * N_v;
+            end
         else
             gram_matrices{j} = gram_matrices{j} + Phi_v' * Phi_v;
             target_vectors{j} = target_vectors{j} + Phi_v' * D_v;
+            for n = 1:3
+                N_v = N_vec(v_lin_ind,n);
+                normal_vectors{n, j} = normal_vectors{n, j} + Phi_v' * N_v;
+            end
         end
         
         start_row = start_row + vert_model_size;
@@ -133,9 +149,10 @@ for k = 1:num_training
     if init_matrices
         init_matrices = 0;
     end
+    %disp('After mat mult');
 
     % accumulate simple depth prior avg
-    if nargout > 3
+    if nargout > 4
         if ~exist('D_prior_vec', 'var')
             D_prior_vec = zeros(num_pix, 1);
         end
@@ -143,7 +160,7 @@ for k = 1:num_training
     end
     
     % save stacked phis
-    if nargout > 4
+    if nargout > 5
         if ~exist('Phi_stacked', 'var')
             Phi_stacked = zeros(num_training*num_pix, num_features);
             start_I_p = 1;
@@ -155,7 +172,7 @@ for k = 1:num_training
     end
     
     % save stacked target_depths
-    if nargout > 5
+    if nargout > 6
         if ~exist('D_target_stacked', 'var')
             D_target_stacked = zeros(num_training*num_pix, 1);
             start_I_d = 1;
@@ -172,24 +189,34 @@ for k = 1:num_training
     end
     
     % snapshot to prevent training data loss
+    %disp('Before save');
     if mod(k-1, config.snapshot_rate) == 0 || k == (num_training - 1)
         training_snapshot.gram_matrix = gram_matrices;
         training_snapshot.target_vector = target_vectors;
+        training_snapshot.normal_vectors = normal_vectors;
         training_snapshot.iter = k;
         training_snapshot.rgb_filename = rgb_filename;
 
         save(config.tmp_training_file, 'training_snapshot');
     end
+    %disp('After save');
+    
+    if sum(sum(isnan(normal_vectors{1,1}))) > 0
+        stop = 1;
+    end
 end
 
 if nargout > 3
-    varargout{1} = D_prior_vec / num_training;
+    varargout{1} = normal_vectors;
 end
 if nargout > 4
-    varargout{2} = Phi_stacked;
+    varargout{2} = D_prior_vec / num_training;
 end
 if nargout > 5
-    varargout{3} = D_target_stacked;
+    varargout{3} = Phi_stacked;
+end
+if nargout > 6
+    varargout{4} = D_target_stacked;
 end
 
 end

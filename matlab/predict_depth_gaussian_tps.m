@@ -1,7 +1,9 @@
 function [d_pred_vec, varargout] = predict_depth_gaussian_tps(image_pyr, ...
-    Phi, smooth_weights, tps_weights, model, config)
+    Phi, corr_ind, u_nc, v_3d, smooth_weights, tps_weights, model, config)
 %PREDICT_DEPTH_GAUSSIAN Predicts depth using gaussian model of both depth
 %  and smoothness, which can be solved as a linear system
+% u_nc - test pixels in normalized image coords
+% v_3d - predicted test points in 3d
 
 % lambda = model.sigma_tex / model.sigma_smooth;
 % gamma = model.sigma_tex / model.sigma_prior;
@@ -35,17 +37,30 @@ for j = 1:config.num_vert_models
     Phi_v = Phi(v_lin_ind,:);
 
     b(v_lin_ind) = Phi_v * model.w{j};
-    lambda(v_lin_ind) = model.sigma_tex{j} / sigma_smooth;
-    gamma(v_lin_ind) = model.sigma_tex{j} / sigma_prior;
-    nu(v_lin_ind) = model.sigma_tex{j} / sigma_tps;
+    lambda(v_lin_ind) = model.sigma_tex{j} / model.sigma_smooth;
+    gamma(v_lin_ind) = model.sigma_tex{j} / model.sigma_prior;
+    nu(v_lin_ind) = model.sigma_tex{j} / model.sigma_tps;
 
     start_row = start_row + vert_model_size;
     end_row = min(start_row + vert_model_size, im_size(1)+1);
 end
 %b = Phi * model.w;
 
-b = b + gamma * model.D_prior_vec;
-b = b + nu * model.D_tps_vec .* tps_weights;
+% get the correspondences
+target_lin_ind = corr_ind(:,1);
+source_lin_ind = corr_ind(:,2);
+corr_weights = zeros(num_pix, 1);
+corr_weights(target_lin_ind) = tps_weights(target_lin_ind);
+
+% compute the sums needed for prediction using tps
+u_nc_sq_sum = zeros(num_pix, 1);
+uv_sum = zeros(num_pix, 1);
+u_nc_sq_sum(target_lin_ind) = sum(u_nc(target_lin_ind,:).^2, 2);
+uv_sum(target_lin_ind) = sum(u_nc(target_lin_ind,:) .* v_3d(source_lin_ind,:), 2);
+
+% create rhs of equation
+b = b + gamma .* model.D_prior_vec;
+b = b + nu .* corr_weights .* uv_sum;
 
 % if config.use_log_depth
 %     b = exp(b) - 1;
@@ -110,7 +125,8 @@ A(lin_ind_fill) = A(lin_ind_fill)' - lambda .* smooth_weights(:,4);
 
 % update diagonal
 A(lin_ind_diag) = ...
-    ones(num_pix,1) + lambda .* sum(smooth_weights, 2) + gamma + nu .* tps_weights;
+    ones(num_pix,1) + lambda .* sum(smooth_weights, 2) + gamma + ...
+    nu .* corr_weights .* u_nc_sq_sum; % corr weights zeros out irrelevant corrs
 
 lin_ind_fill = ...
     sub2ind(mat_size, lin_ind_left(valid_ind_left), lin_ind_left(valid_ind_left));

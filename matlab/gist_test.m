@@ -1,5 +1,5 @@
 % foolin around with gist
-num_images = 849;
+num_images = 10;
 test_ind = round(rand() * (num_images-1) + 1);
 
 data_dir = 'data/VOCB3DO';
@@ -29,7 +29,7 @@ end
 kd = KDTreeSearcher(gist_features');
 
 %% lookup and display results
-K = 10;
+K = 3;
 indices = knnsearch(kd, test_gist', 'K', K);
 
 figure;

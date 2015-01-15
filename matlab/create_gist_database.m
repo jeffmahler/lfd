@@ -17,9 +17,6 @@ for k = 1:num_training
     
     % read image and downsamples
     I = imread(rgb_filename);
-    for i = 1:(config.start_level-1)
-       I = impyramid(I, 'reduce');
-    end
     
     % compute gist representation
     I_gist_vec = im2gist(I);
